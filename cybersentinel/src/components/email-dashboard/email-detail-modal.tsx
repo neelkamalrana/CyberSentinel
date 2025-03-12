@@ -24,7 +24,9 @@ import {
   ExternalLink,
   Trash2,
   Ban,
-  Archive
+  FileText,
+  AlertTriangle,
+  CheckCircle
 } from "lucide-react";
 
 interface EmailDetailModalProps {
@@ -57,27 +59,6 @@ export function EmailDetailModal({
     onDelete(email.id);
     onClose();
   };
-
-  // Mock email content
-  const mockContent = `
-Dear Customer,
-
-We have detected unusual activity on your account. To ensure your account security, 
-please verify your information immediately by clicking the link below:
-
-${email.riskLevel === 'phishing' ? 'https://security-verify.amazzon-security.com/verify' : 'https://account.amazon.com/security'}
-
-Failure to verify your account within 24 hours may result in account suspension.
-
-Regards,
-${email.sender.split('@')[0]} Team
-  `;
-
-  // Mock email attachments for phishing emails
-  const mockAttachments = email.riskLevel === 'phishing' ? [
-    { name: 'Invoice_PDF.exe', size: '245 KB', type: 'application/octet-stream' },
-    { name: 'Account_Details.html', size: '12 KB', type: 'text/html' }
-  ] : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -115,7 +96,7 @@ ${email.sender.split('@')[0]} Team
                 <div className="flex items-center text-muted-foreground">
                   <Mail className="h-4 w-4 mr-2" />
                   <span className="font-medium">To:</span>
-                  <span className="ml-2">you@company.com</span>
+                  <span className="ml-2">{email.recipient}</span>
                 </div>
               </div>
               <div className="space-y-2">
@@ -159,46 +140,97 @@ ${email.sender.split('@')[0]} Team
           <div className="space-y-3">
             <h4 className="font-medium">Email Content</h4>
             <div className="bg-muted/50 p-4 rounded-md whitespace-pre-line border">
-              {mockContent}
+              {email.content}
             </div>
           </div>
 
           {/* Links detected */}
-          {email.riskLevel === 'phishing' && (
+          {email.links.length > 0 && (
             <div className="space-y-3">
-              <h4 className="font-medium">Suspicious Links Detected</h4>
-              <div className="bg-destructive/10 p-3 rounded-md space-y-2">
-                <div className="flex items-start">
-                  <LinkIcon className="h-4 w-4 text-destructive mr-2 mt-0.5 flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-destructive">https://security-verify.amazzon-security.com/verify</span>
-                    <span className="text-xs text-muted-foreground">Detected as: Spoofed domain (Homograph attack)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Attachments if any */}
-          {mockAttachments.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-medium">Attachments</h4>
-              <div className="bg-muted/50 p-3 rounded-md space-y-2 border">
-                {mockAttachments.map((attachment, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <AlertCircle className={`h-4 w-4 ${attachment.name.endsWith('.exe') ? 'text-destructive' : 'text-amber-500'} mr-2`} />
-                      <span>{attachment.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">({attachment.size})</span>
+              <h4 className="font-medium">Links Detected</h4>
+              <div className="space-y-2">
+                {email.links.map((link, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`p-3 rounded-md ${link.isSuspicious ? 'bg-destructive/10' : 'bg-muted/50 border'}`}
+                  >
+                    <div className="flex items-start">
+                      {link.isSuspicious ? (
+                        <AlertTriangle className="h-4 w-4 text-destructive mr-2 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <LinkIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className={link.isSuspicious ? 'text-destructive' : ''}>
+                          {link.url}
+                        </span>
+                        {link.isSuspicious && link.reason && (
+                          <span className="text-xs text-muted-foreground">
+                            Detected as: {link.reason}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {attachment.name.endsWith('.exe') && (
-                      <Badge variant="destructive" className="text-xs">Malicious</Badge>
-                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Attachments if any */}
+          {email.attachments.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-medium">Attachments</h4>
+              <div className="bg-muted/50 p-3 rounded-md space-y-2 border">
+                {email.attachments.map((attachment, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      {attachment.isMalicious ? (
+                        <AlertCircle className="h-4 w-4 text-destructive mr-2" />
+                      ) : (
+                        <FileText className="h-4 w-4 mr-2" />
+                      )}
+                      <span>{attachment.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">({attachment.size})</span>
+                    </div>
+                    {attachment.isMalicious && (
+                      <Badge variant="destructive" className="text-xs">
+                        Malicious
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {email.attachments.some(att => att.isMalicious) && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm flex items-center">
+                  <AlertCircle className="h-4 w-4 text-destructive mr-2 flex-shrink-0" />
+                  <span>This email contains potentially malicious attachments that have been blocked.</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Security recommendation */}
+          <div className="rounded-md p-3 text-sm flex items-center mt-4">
+            {email.riskLevel === 'phishing' && (
+              <div className="bg-destructive/10 p-3 rounded-md flex items-center">
+                <AlertCircle className="h-4 w-4 text-destructive mr-2 flex-shrink-0" />
+                <span>This email is highly suspicious and likely a phishing attempt. Do not click any links or download attachments.</span>
+              </div>
+            )}
+            {email.riskLevel === 'suspicious' && (
+              <div className="bg-amber-500/10 p-3 rounded-md flex items-center">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mr-2 flex-shrink-0" />
+                <span>This email contains suspicious elements. Exercise caution and verify with the sender before taking any action.</span>
+              </div>
+            )}
+            {email.riskLevel === 'safe' && (
+              <div className="bg-emerald-500/10 p-3 rounded-md flex items-center">
+                <CheckCircle className="h-4 w-4 text-emerald-500 mr-2 flex-shrink-0" />
+                <span>This email appears to be legitimate and safe.</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <DialogFooter className="flex sm:justify-between">
