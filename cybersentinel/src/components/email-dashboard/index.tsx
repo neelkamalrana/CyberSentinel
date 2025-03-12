@@ -6,7 +6,8 @@ import { DashboardHeader } from './dashboard-header';
 import { DashboardStats } from './dashboard-stats';
 import { FilterControls } from './filter-controls';
 import { EmailTable } from './email-table';
-import { currentUser, mockEmails, mockStats } from '@/lib/mock-data';
+import { AddEmailForm } from './add-email-form';
+import { currentUser, mockEmails, generateMockStats } from '@/lib/mock-data';
 import { rolePermissions } from '@/lib/config';
 import { UserRole, Email } from '@/lib/types';
 import { 
@@ -19,16 +20,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { 
   Download, 
-  Settings 
+  Settings,
+  AlertTriangle 
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function PhishingDashboard() {
   const { setTheme } = useTheme();
-  const [emails, setEmails] = useState(mockEmails);
+  const [allEmails, setAllEmails] = useState<Email[]>(mockEmails);
+  const [filteredEmails, setFilteredEmails] = useState<Email[]>(mockEmails);
   const [filterRisk, setFilterRisk] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentRole, setCurrentRole] = useState<UserRole>(currentUser.role);
+  const [stats, setStats] = useState(generateMockStats(mockEmails));
   const permissions = rolePermissions[currentRole];
   
   // Set dark theme on component mount
@@ -38,7 +43,7 @@ export default function PhishingDashboard() {
   
   // Filter emails based on risk level, status and search query
   useEffect(() => {
-    let filtered = mockEmails;
+    let filtered = allEmails;
     
     // Apply risk level filter
     if (filterRisk !== "all") {
@@ -59,14 +64,24 @@ export default function PhishingDashboard() {
       );
     }
     
-    setEmails(filtered);
-  }, [filterRisk, filterStatus, searchQuery]);
+    setFilteredEmails(filtered);
+  }, [filterRisk, filterStatus, searchQuery, allEmails]);
+
+  // Update stats when all emails change
+  useEffect(() => {
+    setStats(generateMockStats(allEmails));
+  }, [allEmails]);
+
+  // Handler for adding a new email after AI analysis
+  const handleAddEmail = (newEmail: Email) => {
+    setAllEmails(prev => [newEmail, ...prev]);
+  };
 
   // Mock email action handlers
   const handleBlockEmail = (id: number) => {
     if (!permissions.canBlock) return;
     
-    setEmails(prev => 
+    setAllEmails(prev => 
       prev.map(email => 
         email.id === id ? { ...email, status: 'blocked' } : email
       )
@@ -76,7 +91,7 @@ export default function PhishingDashboard() {
   const handleDeleteEmail = (id: number) => {
     if (!permissions.canDelete) return;
     
-    setEmails(prev => prev.filter(email => email.id !== id));
+    setAllEmails(prev => prev.filter(email => email.id !== id));
   };
 
   const handleExportData = () => {
@@ -103,6 +118,11 @@ export default function PhishingDashboard() {
           <h2 className="text-3xl font-bold tracking-tight">Email Security Dashboard</h2>
           
           <div className="flex items-center space-x-2">
+            {/* Add Email for AI Analysis button */}
+            {currentRole !== 'viewer' && (
+              <AddEmailForm onAddEmail={handleAddEmail} />
+            )}
+            
             {permissions.canExport && (
               <Button 
                 variant="outline"
@@ -128,7 +148,19 @@ export default function PhishingDashboard() {
           </div>
         </div>
       
-        <DashboardStats stats={mockStats} />
+        {/* Phishing alerts summary */}
+        {stats.phishingCount > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Phishing Threats Detected</AlertTitle>
+            <AlertDescription>
+              {stats.phishingCount} potential phishing emails have been identified. 
+              Review and take action to protect your organization.
+            </AlertDescription>
+          </Alert>
+        )}
+      
+        <DashboardStats stats={stats} />
         
         <Card className="border shadow-sm">
           <CardHeader>
@@ -148,8 +180,8 @@ export default function PhishingDashboard() {
           </CardHeader>
           <CardContent>
             <EmailTable 
-              emails={emails}
-              totalEmails={mockStats.totalEmails}
+              emails={filteredEmails}
+              totalEmails={stats.totalEmails}
               permissions={permissions}
               onBlockEmail={handleBlockEmail}
               onDeleteEmail={handleDeleteEmail}
@@ -163,7 +195,7 @@ export default function PhishingDashboard() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
             <p>© 2025 CyberSentinel. All rights reserved.</p>
-            <p>Version 2.0.1</p>
+            <p>Version 2.1.0</p>
           </div>
         </div>
       </footer>
