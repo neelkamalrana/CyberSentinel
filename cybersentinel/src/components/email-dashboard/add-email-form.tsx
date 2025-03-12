@@ -81,8 +81,11 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     setAnalysisResults(null);
     setAnalysisError(null);
     
+    console.log("Attempting to analyze email with data:", data);
+    
     try {
       // Call our API route
+      console.log("Sending request to /api/analyze-email...");
       const response = await fetch('/api/analyze-email', {
         method: 'POST',
         headers: {
@@ -95,12 +98,26 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
         }),
       });
       
+      console.log("Response received:", response.status, response.statusText);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze email');
+        let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error("API Error Details:", errorData);
+          errorMessage = errorData.error || errorMessage;
+          if (errorData.details) {
+            console.error("API Error Full Details:", JSON.stringify(errorData.details, null, 2));
+          }
+        } catch (e) {
+          console.error("Could not parse error response");
+        }
+        throw new Error(errorMessage);
       }
       
+      console.log("Parsing response JSON...");
       const analysisResult = await response.json();
+      console.log("Analysis result:", analysisResult);
       setAnalysisResults(analysisResult);
     } catch (error) {
       console.error('Error analyzing email:', error);
@@ -113,10 +130,12 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
   const onSubmit = (data: FormValues) => {
     // First analyze the email if not already analyzed
     if (!analysisResults) {
+      console.log("No analysis results yet, starting analysis...");
       analyzeEmail(data);
       return;
     }
     
+    console.log("Analysis complete, creating new email entry");
     // If we already have analysis results, create and add the email
     const newEmail: Email = {
       id: Date.now(),
