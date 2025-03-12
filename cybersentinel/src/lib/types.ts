@@ -16,7 +16,23 @@ export interface User {
   avatar: string;
 }
 
-// Email interface
+// Link interface
+export interface EmailLink {
+  url: string;
+  isSuspicious: boolean;
+  reason: string;
+}
+
+// Attachment interface
+export interface EmailAttachment {
+  name: string;
+  size: string;
+  type: string;
+  isMalicious?: boolean;
+  reason?: string;
+}
+
+// Email interface (enhanced)
 export interface Email {
   id: number;
   sender: string;
@@ -25,6 +41,11 @@ export interface Email {
   riskLevel: RiskLevel;
   status: EmailStatus;
   indicators: string[];
+  // Additional fields for detail view
+  recipient: string;
+  content: string;
+  links: EmailLink[];
+  attachments: EmailAttachment[];
 }
 
 // Stats interface
