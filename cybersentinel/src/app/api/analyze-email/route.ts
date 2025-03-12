@@ -1,10 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -50,17 +44,35 @@ Consider these phishing indicators in your analysis:
 8. Unsolicited attachments or download requests
 `;
 
-    // Call OpenAI API
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2, // Lower temperature for more consistent, analytical responses
-      max_tokens: 1000,
-      response_format: { type: 'json_object' }
+    // Call OpenAI API using fetch instead of the SDK
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        max_tokens: 1000,
+        response_format: { type: 'json_object' }
+      })
     });
 
+    // Check if the API call was successful
+    if (!openaiResponse.ok) {
+      const errorData = await openaiResponse.json();
+      console.error('OpenAI API error:', errorData);
+      return NextResponse.json(
+        { error: 'Failed to analyze email with AI', details: errorData },
+        { status: 500 }
+      );
+    }
+
     // Extract and parse the response
-    const responseContent = response.choices[0].message.content;
+    const responseData = await openaiResponse.json();
+    const responseContent = responseData.choices[0].message.content;
     
     if (!responseContent) {
       return NextResponse.json(
