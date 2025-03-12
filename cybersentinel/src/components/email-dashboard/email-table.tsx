@@ -1,9 +1,10 @@
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Email, RolePermission } from '@/lib/types';
 import { formatDate } from '@/lib/config';
 import { riskLevelConfig, statusConfig } from '@/lib/config';
+import { EmailDetailModal } from './email-detail-modal';
 import { 
   Table, 
   TableBody, 
@@ -58,6 +59,20 @@ export function EmailTable({
   onDeleteEmail,
   currentRole
 }: EmailTableProps) {
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleViewDetails = (email: Email) => {
+    setSelectedEmail(email);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    // Keep the selected email for a moment to prevent UI flicker during modal close animation
+    setTimeout(() => setSelectedEmail(null), 300);
+  };
+
   return (
     <>
       <Table>
@@ -79,7 +94,11 @@ export function EmailTable({
         </TableHeader>
         <TableBody>
           {emails.map((email) => (
-            <TableRow key={email.id} className="hover:bg-muted/50">
+            <TableRow 
+              key={email.id} 
+              className="hover:bg-muted/50 cursor-pointer"
+              onClick={() => handleViewDetails(email)}
+            >
               <TableCell className="font-medium">{email.sender}</TableCell>
               <TableCell>{email.subject}</TableCell>
               <TableCell>
@@ -126,7 +145,7 @@ export function EmailTable({
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -134,13 +153,22 @@ export function EmailTable({
                   <DropdownMenuContent align="end" className="bg-background border shadow-md">
                     <DropdownMenuLabel className="font-medium">Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer">
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewDetails(email);
+                      }}
+                    >
                       <Eye className="mr-2 h-4 w-4" />
                       <span>View Details</span>
                     </DropdownMenuItem>
                     {permissions.canBlock && (
                       <DropdownMenuItem 
-                        onClick={() => onBlockEmail(email.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onBlockEmail(email.id);
+                        }}
                         className="cursor-pointer"
                         disabled={email.status === 'blocked'}
                       >
@@ -150,7 +178,10 @@ export function EmailTable({
                     )}
                     {permissions.canDelete && (
                       <DropdownMenuItem
-                        onClick={() => onDeleteEmail(email.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteEmail(email.id);
+                        }}
                         className="text-destructive focus:text-destructive cursor-pointer"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -175,6 +206,17 @@ export function EmailTable({
           Export Results
         </Button>
       </div>
+
+      {/* Email Detail Modal */}
+      <EmailDetailModal 
+        email={selectedEmail}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onBlock={onBlockEmail}
+        onDelete={onDeleteEmail}
+        canBlock={permissions.canBlock}
+        canDelete={permissions.canDelete}
+      />
     </>
   );
 }
