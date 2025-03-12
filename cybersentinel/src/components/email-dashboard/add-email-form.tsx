@@ -364,7 +364,7 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
               </Button>
               <Button 
                 type="submit" 
-                disabled={isAnalyzing || (!analysisResults && Object.values(form.getValues()).some(val => !val))}
+                disabled={isAnalyzing || (form.getValues().sender === '' && form.getValues().subject === '' && form.getValues().content === '')}
                 className={analysisResults ? 
                   (analysisResults.riskLevel === 'phishing' ? 'bg-destructive hover:bg-destructive/90' : '') : ''}
               >
