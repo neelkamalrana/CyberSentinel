@@ -38,7 +38,8 @@ import {
   CheckCircle,
   Loader2,
   Plus,
-  Brain
+  Brain,
+  LinkIcon
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -52,14 +53,20 @@ interface FormValues {
   content: string;
 }
 
+interface AnalysisResult {
+  riskLevel: RiskLevel;
+  confidence: number;
+  indicators: string[];
+  analysis: string;
+  suspiciousLinks: { url: string; reason: string }[];
+  recommendedAction: string;
+}
+
 export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResults, setAnalysisResults] = useState<{
-    riskLevel: RiskLevel;
-    indicators: string[];
-    confidence: number;
-  } | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -72,117 +79,39 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
   const analyzeEmail = async (data: FormValues) => {
     setIsAnalyzing(true);
     setAnalysisResults(null);
+    setAnalysisError(null);
     
-    // Simulate AI analysis with a delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Simplified phishing detection logic
-    const senderDomain = data.sender.split('@')[1];
-    const content = data.content.toLowerCase();
-    const subject = data.subject.toLowerCase();
-    
-    const indicators: string[] = [];
-    let riskLevel: RiskLevel = 'safe';
-    let confidence = 0;
-    
-    // Check for suspicious sender domains
-    if (senderDomain) {
-      const suspiciousDomains = ['amazzon', 'amaz0n', 'paypaI', 'goog1e', 'micros0ft', 'microsoft365.net'];
-      const hasTypos = suspiciousDomains.some(domain => senderDomain.includes(domain));
-      if (hasTypos) {
-        indicators.push('spoofed domain (potential homograph attack)');
-        riskLevel = 'phishing';
-        confidence += 30;
-      }
-    }
-    
-    // Check for urgent language
-    if (
-      subject.includes('urgent') || 
-      subject.includes('immediate') || 
-      subject.includes('alert') ||
-      subject.includes('verify') ||
-      subject.includes('suspended') ||
-      subject.includes('locked')
-    ) {
-      indicators.push('urgent action requested in subject');
-      if (riskLevel !== 'phishing') riskLevel = 'suspicious';
-      confidence += 15;
-    }
-    
-    // Check for suspicious content patterns
-    if (
-      content.includes('verify your account') ||
-      content.includes('security alert') ||
-      content.includes('unusual activity') ||
-      content.includes('password will expire') ||
-      content.includes('click here to') ||
-      content.includes('limited access')
-    ) {
-      indicators.push('suspicious action prompts in content');
-      confidence += 20;
-      if (indicators.length > 1) riskLevel = 'phishing';
-    }
-    
-    // Check for links with suspicious patterns
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const urls = content.match(urlRegex) || [];
-    
-    if (urls.length > 0) {
-      const suspiciousUrlPatterns = [
-        'security-verify', 
-        'account-confirm', 
-        'login-secure',
-        'password-reset'
-      ];
+    try {
+      // Call our API route
+      const response = await fetch('/api/analyze-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: data.sender,
+          subject: data.subject,
+          content: data.content
+        }),
+      });
       
-      const hasSuspiciousUrls = urls.some(url => 
-        suspiciousUrlPatterns.some(pattern => url.includes(pattern))
-      );
-      
-      if (hasSuspiciousUrls) {
-        indicators.push('suspicious URL patterns detected');
-        riskLevel = 'phishing';
-        confidence += 25;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to analyze email');
       }
+      
+      const analysisResult = await response.json();
+      setAnalysisResults(analysisResult);
+    } catch (error) {
+      console.error('Error analyzing email:', error);
+      setAnalysisError(error instanceof Error ? error.message : 'Failed to analyze the email');
+    } finally {
+      setIsAnalyzing(false);
     }
-    
-    // Check for credential requests
-    if (
-      content.includes('enter your password') ||
-      content.includes('provide your details') ||
-      content.includes('confirm your information') ||
-      content.includes('update your account')
-    ) {
-      indicators.push('requests for credentials or personal information');
-      if (riskLevel !== 'phishing') riskLevel = 'suspicious';
-      confidence += 20;
-    }
-    
-    // Normalize confidence score
-    confidence = Math.min(Math.ceil(confidence), 100);
-    
-    // Set risk level based on overall confidence and indicators
-    if (confidence >= 60) {
-      riskLevel = 'phishing';
-    } else if (confidence >= 30) {
-      riskLevel = 'suspicious';
-    } else {
-      riskLevel = 'safe';
-    }
-    
-    // Set analysis results
-    setAnalysisResults({
-      riskLevel,
-      indicators: indicators.length > 0 ? indicators : ['no suspicious indicators detected'],
-      confidence
-    });
-    
-    setIsAnalyzing(false);
   };
 
   const onSubmit = (data: FormValues) => {
-    // First analyze the email
+    // First analyze the email if not already analyzed
     if (!analysisResults) {
       analyzeEmail(data);
       return;
@@ -200,7 +129,7 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
               analysisResults.riskLevel === 'suspicious' ? 'reviewing' : 'cleared',
       indicators: analysisResults.indicators,
       recipient: 'me@company.com',
-      links: extractLinks(data.content, analysisResults.riskLevel === 'phishing'),
+      links: formatLinks(analysisResults.suspiciousLinks || [], data.content),
       attachments: []
     };
     
@@ -212,15 +141,26 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     setIsOpen(false);
   };
 
-  // Helper function to extract links from content
-  const extractLinks = (content: string, isSuspicious: boolean): { url: string; isSuspicious: boolean; reason: string }[] => {
+  // Helper function to format links from analysis results and content
+  const formatLinks = (
+    suspiciousLinks: { url: string; reason: string }[], 
+    content: string
+  ) => {
+    // Extract all links from content with a simple regex
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const urls = content.match(urlRegex) || [];
+    const allLinks = content.match(urlRegex) || [];
     
-    return urls.map(url => ({
+    // Create a map of suspicious links
+    const suspiciousMap = new Map();
+    suspiciousLinks.forEach(link => {
+      suspiciousMap.set(link.url, link.reason);
+    });
+    
+    // Return formatted links
+    return allLinks.map(url => ({
       url,
-      isSuspicious,
-      reason: isSuspicious ? 'Detected in suspected phishing email' : ''
+      isSuspicious: suspiciousMap.has(url),
+      reason: suspiciousMap.get(url) || ''
     }));
   };
   
@@ -230,6 +170,7 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     if (!open) {
       form.reset();
       setAnalysisResults(null);
+      setAnalysisError(null);
     }
   };
 
@@ -245,7 +186,7 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
         <DialogHeader>
           <DialogTitle>Submit Email for AI Analysis</DialogTitle>
           <DialogDescription>
-            Enter email details to analyze for potential phishing or security threats.
+            Enter email details to analyze for potential phishing or security threats using advanced AI.
           </DialogDescription>
         </DialogHeader>
         
@@ -299,27 +240,23 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
               />
             </div>
             
+            {/* Error Message */}
+            {analysisError && (
+              <div className="bg-destructive/10 p-3 rounded-md text-destructive flex items-start">
+                <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Analysis failed</p>
+                  <p className="text-sm">{analysisError}</p>
+                </div>
+              </div>
+            )}
+            
             {/* Analysis Results */}
             {analysisResults && (
               <Card className="mt-4">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">AI Analysis Results</CardTitle>
-                  <CardDescription>Phishing threat assessment</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      {analysisResults.riskLevel === 'phishing' && (
-                        <AlertCircle className="h-5 w-5 text-destructive mr-2" />
-                      )}
-                      {analysisResults.riskLevel === 'suspicious' && (
-                        <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
-                      )}
-                      {analysisResults.riskLevel === 'safe' && (
-                        <CheckCircle className="h-5 w-5 text-emerald-500 mr-2" />
-                      )}
-                      <span className="font-semibold capitalize">{analysisResults.riskLevel}</span>
-                    </div>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg">AI Analysis Results</CardTitle>
                     <Badge
                       className={
                         analysisResults.riskLevel === 'phishing'
@@ -332,9 +269,30 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
                       {analysisResults.confidence}% Confidence
                     </Badge>
                   </div>
+                  <CardDescription>Phishing threat assessment</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center">
+                    {analysisResults.riskLevel === 'phishing' && (
+                      <AlertCircle className="h-5 w-5 text-destructive mr-2" />
+                    )}
+                    {analysisResults.riskLevel === 'suspicious' && (
+                      <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+                    )}
+                    {analysisResults.riskLevel === 'safe' && (
+                      <CheckCircle className="h-5 w-5 text-emerald-500 mr-2" />
+                    )}
+                    <span className="font-semibold capitalize">{analysisResults.riskLevel}</span>
+                  </div>
                   
                   <Separator />
                   
+                  {/* Analysis explanation */}
+                  <div className="text-sm">
+                    <p>{analysisResults.analysis}</p>
+                  </div>
+                  
+                  {/* Detected Indicators */}
                   <div>
                     <h4 className="text-sm font-medium mb-2">Detected Indicators:</h4>
                     <ul className="space-y-1">
@@ -346,10 +304,36 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
                       ))}
                     </ul>
                   </div>
+                  
+                  {/* Suspicious Links */}
+                  {analysisResults.suspiciousLinks && analysisResults.suspiciousLinks.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Suspicious Links:</h4>
+                      <ul className="space-y-2">
+                        {analysisResults.suspiciousLinks.map((link, idx) => (
+                          <li key={idx} className="text-sm p-2 bg-destructive/10 rounded-md">
+                            <div className="flex items-start">
+                              <LinkIcon className="h-4 w-4 text-destructive mr-2 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-destructive break-all">{link.url}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{link.reason}</p>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {/* Recommended Action */}
+                  <div className="mt-4 p-3 rounded-md bg-muted text-sm">
+                    <h4 className="font-medium mb-1">Recommended Action:</h4>
+                    <p>{analysisResults.recommendedAction}</p>
+                  </div>
                 </CardContent>
                 <CardFooter className="bg-muted/30 text-xs rounded-b-lg">
                   <p className="text-muted-foreground">
-                    Analysis performed using AI-based phishing detection
+                    Analysis performed using OpenAI GPT-4 Turbo
                   </p>
                 </CardFooter>
               </Card>
@@ -362,6 +346,8 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
               <Button 
                 type="submit" 
                 disabled={isAnalyzing || (!analysisResults && Object.values(form.getValues()).some(val => !val))}
+                className={analysisResults ? 
+                  (analysisResults.riskLevel === 'phishing' ? 'bg-destructive hover:bg-destructive/90' : '') : ''}
               >
                 {isAnalyzing ? (
                   <>
