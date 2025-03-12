@@ -1,25 +1,25 @@
+import React from 'react';
 import { RiskLevel, EmailStatus, RolePermissions } from './types';
 import { AlertCircle, AlertTriangle, CheckCircle, Flag, Eye, Ban } from 'lucide-react';
 
 // Risk level badge styling and icons
 export const riskLevelConfig: Record<RiskLevel, {
-  icon: JSX.Element;
+  icon: React.ReactNode;
   color: string;
   label: string;
 }> = {
   phishing: {
-    icon: <AlertCircle className="h-4 w-4 mr-1" />,
+    icon: React.createElement(AlertCircle, { className: "h-4 w-4 mr-1" }),
     color: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-
     label: "Phishing"
   },
   suspicious: {
-    icon: <AlertTriangle className="h-4 w-4 mr-1" />,
+    icon: React.createElement(AlertTriangle, { className: "h-4 w-4 mr-1" }),
     color: "bg-amber-500 text-white hover:bg-amber-600",
     label: "Suspicious"
   },
   safe: {
-    icon: <CheckCircle className="h-4 w-4 mr-1" />,
+    icon: React.createElement(CheckCircle, { className: "h-4 w-4 mr-1" }),
     color: "bg-emerald-500 text-white hover:bg-emerald-600",
     label: "Safe"
   }
@@ -27,27 +27,27 @@ export const riskLevelConfig: Record<RiskLevel, {
 
 // Status configuration
 export const statusConfig: Record<EmailStatus, {
-  icon: JSX.Element;
+  icon: React.ReactNode;
   color: string;
   label: string;
 }> = {
   flagged: {
-    icon: <Flag className="h-4 w-4" />,
+    icon: React.createElement(Flag, { className: "h-4 w-4" }),
     color: "text-amber-500",
     label: "Flagged"
   },
   reviewing: {
-    icon: <Eye className="h-4 w-4" />,
+    icon: React.createElement(Eye, { className: "h-4 w-4" }),
     color: "text-blue-500",
     label: "Reviewing"
   },
   blocked: {
-    icon: <Ban className="h-4 w-4" />,
+    icon: React.createElement(Ban, { className: "h-4 w-4" }),
     color: "text-destructive",
     label: "Blocked"
   },
   cleared: {
-    icon: <CheckCircle className="h-4 w-4" />,
+    icon: React.createElement(CheckCircle, { className: "h-4 w-4" }),
     color: "text-emerald-500",
     label: "Cleared"
   }
@@ -79,7 +79,7 @@ export const rolePermissions: RolePermissions = {
 };
 
 // Format date for display
-export const formatDate = (dateString: string) => {
+export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
