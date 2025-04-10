@@ -7,6 +7,7 @@ import { DashboardStats } from './dashboard-stats';
 import { FilterControls } from './filter-controls';
 import { EmailTable } from './email-table';
 import { AddEmailForm } from './add-email-form';
+import { SecurityToolsHub } from './security-tools-hub';
 import { currentUser, mockEmails, generateMockStats } from '@/lib/mock-data';
 import { rolePermissions } from '@/lib/config';
 import { UserRole, Email } from '@/lib/types';
@@ -21,9 +22,11 @@ import { Button } from "@/components/ui/button";
 import { 
   Download, 
   Settings,
-  AlertTriangle 
+  AlertTriangle,
+  Shield
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function PhishingDashboard() {
   const { setTheme } = useTheme();
@@ -34,6 +37,7 @@ export default function PhishingDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentRole, setCurrentRole] = useState<UserRole>(currentUser.role);
   const [stats, setStats] = useState(generateMockStats(mockEmails));
+  const [activeTab, setActiveTab] = useState<string>("dashboard");
   const permissions = rolePermissions[currentRole];
   
   // Set dark theme on component mount
@@ -115,14 +119,9 @@ export default function PhishingDashboard() {
 
       <main className="flex-grow container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between space-y-2 md:space-y-0">
-          <h2 className="text-3xl font-bold tracking-tight">Email Security Dashboard</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Security Dashboard</h2>
           
           <div className="flex items-center space-x-2">
-            {/* Add Email for AI Analysis button */}
-            {currentRole !== 'viewer' && (
-              <AddEmailForm onAddEmail={handleAddEmail} />
-            )}
-            
             {permissions.canExport && (
               <Button 
                 variant="outline"
@@ -162,33 +161,52 @@ export default function PhishingDashboard() {
       
         <DashboardStats stats={stats} />
         
-        <Card className="border shadow-sm">
-          <CardHeader>
-            <CardTitle>Email Security Analysis</CardTitle>
-            <CardDescription>
-              Review and monitor potentially dangerous emails
-            </CardDescription>
-            
-            <FilterControls 
-              filterRisk={filterRisk}
-              setFilterRisk={setFilterRisk}
-              filterStatus={filterStatus}
-              setFilterStatus={setFilterStatus}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-            />
-          </CardHeader>
-          <CardContent>
-            <EmailTable 
-              emails={filteredEmails}
-              totalEmails={stats.totalEmails}
-              permissions={permissions}
-              onBlockEmail={handleBlockEmail}
-              onDeleteEmail={handleDeleteEmail}
-              currentRole={currentRole}
-            />
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="dashboard" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-2 w-[400px]">
+            <TabsTrigger value="dashboard" className="flex items-center">
+              <Shield className="mr-2 h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="flex items-center">
+              <Shield className="mr-2 h-4 w-4" />
+              Security Tools
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="dashboard" className="mt-6">
+            <Card className="border shadow-sm">
+              <CardHeader>
+                <CardTitle>Email Security Analysis</CardTitle>
+                <CardDescription>
+                  Review and monitor potentially dangerous emails
+                </CardDescription>
+                
+                <FilterControls 
+                  filterRisk={filterRisk}
+                  setFilterRisk={setFilterRisk}
+                  filterStatus={filterStatus}
+                  setFilterStatus={setFilterStatus}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                />
+              </CardHeader>
+              <CardContent>
+                <EmailTable 
+                  emails={filteredEmails}
+                  totalEmails={stats.totalEmails}
+                  permissions={permissions}
+                  onBlockEmail={handleBlockEmail}
+                  onDeleteEmail={handleDeleteEmail}
+                  currentRole={currentRole}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="tools" className="mt-6">
+            <SecurityToolsHub onAddEmail={handleAddEmail} />
+          </TabsContent>
+        </Tabs>
       </main>
       
       <footer className="border-t bg-muted/40 py-4">
