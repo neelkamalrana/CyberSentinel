@@ -42,6 +42,7 @@ import {
   LinkIcon
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from '@/lib/auth-context';
 
 interface AddEmailFormProps {
   onAddEmail: (email: Email) => void;
@@ -67,6 +68,7 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const { user: authUser } = useAuth();
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -81,11 +83,8 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     setAnalysisResults(null);
     setAnalysisError(null);
     
-    console.log("Attempting to analyze email with data:", data);
-    
     try {
       // Call our API route
-      console.log("Sending request to /api/analyze-email...");
       const response = await fetch('/api/analyze-email', {
         method: 'POST',
         headers: {
@@ -98,99 +97,38 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
         }),
       });
       
-      console.log("Response received:", response.status, response.statusText);
-      
       if (!response.ok) {
         let errorMessage = `API Error: ${response.status} ${response.statusText}`;
         try {
           const errorData = await response.json();
-          console.error("API Error Details:", errorData);
           errorMessage = errorData.error || errorMessage;
-          if (errorData.details) {
-            console.error("API Error Full Details:", JSON.stringify(errorData.details, null, 2));
-          }
         } catch (e) {
           console.error("Could not parse error response");
         }
         throw new Error(errorMessage);
       }
       
-      console.log("Parsing response JSON...");
       const analysisResult = await response.json();
-      console.log("Analysis result:", analysisResult);
       setAnalysisResults(analysisResult);
     } catch (error) {
       console.error('Error analyzing email:', error);
       setAnalysisError(error instanceof Error ? error.message : 'Failed to analyze the email');
+      
+      // Fall back to mock analysis after a brief delay
+      setTimeout(() => {
+        handleApiFailure(data);
+      }, 1500);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const onSubmit = (data: FormValues) => {
-    // First analyze the email if not already analyzed
-    if (!analysisResults) {
-      console.log("No analysis results yet, starting analysis...");
-      analyzeEmail(data);
-      return;
-    }
-    
-    console.log("Analysis complete, creating new email entry");
-    // If we already have analysis results, create and add the email
-    const newEmail: Email = {
-      id: Date.now(),
-      sender: data.sender,
-      subject: data.subject,
-      content: data.content,
-      receivedAt: new Date().toISOString(),
-      riskLevel: analysisResults.riskLevel,
-      status: analysisResults.riskLevel === 'phishing' ? 'flagged' : 
-              analysisResults.riskLevel === 'suspicious' ? 'reviewing' : 'cleared',
-      indicators: analysisResults.indicators,
-      recipient: 'me@company.com',
-      links: formatLinks(analysisResults.suspiciousLinks || [], data.content),
-      attachments: []
-    };
-    
-    onAddEmail(newEmail);
-    
-    // Reset form and close dialog
-    form.reset();
-    setAnalysisResults(null);
-    setIsOpen(false);
-  };
-
-  // Helper function to format links from analysis results and content
-  const formatLinks = (
-    suspiciousLinks: { url: string; reason: string }[], 
-    content: string
-  ) => {
-    // Extract all links from content with a simple regex
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const allLinks = content.match(urlRegex) || [];
-    
-    // Create a map of suspicious links
-    const suspiciousMap = new Map();
-    suspiciousLinks.forEach(link => {
-      suspiciousMap.set(link.url, link.reason);
-    });
-    
-    // Return formatted links
-    return allLinks.map(url => ({
-      url,
-      isSuspicious: suspiciousMap.has(url),
-      reason: suspiciousMap.get(url) || ''
-    }));
-  };
-  
-  // Handle dialog close - reset form and analysis
-  const handleDialogChange = (open: boolean) => {
-    setIsOpen(open);
-    if (!open) {
-      form.reset();
-      setAnalysisResults(null);
-      setAnalysisError(null);
-    }
+  // Fallback function for API failure
+  const handleApiFailure = (data: FormValues) => {
+    // Generate a basic mock result
+    const mockResult: AnalysisResult = generateMockAnalysisResult(data);
+    setAnalysisResults(mockResult);
+    setIsAnalyzing(false);
   };
 
   // Function to mock analysis result when API is unavailable
@@ -276,6 +214,70 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     };
   };
 
+  const onSubmit = (data: FormValues) => {
+    // First analyze the email if not already analyzed
+    if (!analysisResults) {
+      analyzeEmail(data);
+      return;
+    }
+    
+    // If we already have analysis results, create and add the email
+    const newEmail: Email = {
+      id: Date.now(), // Generate unique ID using timestamp
+      sender: data.sender,
+      subject: data.subject,
+      content: data.content,
+      receivedAt: new Date().toISOString(),
+      riskLevel: analysisResults.riskLevel,
+      status: analysisResults.riskLevel === 'phishing' ? 'flagged' : 
+              analysisResults.riskLevel === 'suspicious' ? 'reviewing' : 'cleared',
+      indicators: analysisResults.indicators,
+      recipient: authUser?.email || 'security@company.com', // Store who submitted the analysis
+      links: formatLinks(analysisResults.suspiciousLinks || [], data.content),
+      attachments: []
+    };
+    
+    onAddEmail(newEmail);
+    
+    // Reset form and close dialog
+    form.reset();
+    setAnalysisResults(null);
+    setIsOpen(false);
+  };
+
+  // Helper function to format links from analysis results and content
+  const formatLinks = (
+    suspiciousLinks: { url: string; reason: string }[], 
+    content: string
+  ) => {
+    // Extract all links from content with a simple regex
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const allLinks = content.match(urlRegex) || [];
+    
+    // Create a map of suspicious links
+    const suspiciousMap = new Map();
+    suspiciousLinks.forEach(link => {
+      suspiciousMap.set(link.url, link.reason);
+    });
+    
+    // Return formatted links
+    return allLinks.map(url => ({
+      url,
+      isSuspicious: suspiciousMap.has(url),
+      reason: suspiciousMap.get(url) || ''
+    }));
+  };
+  
+  // Handle dialog close - reset form and analysis
+  const handleDialogChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      form.reset();
+      setAnalysisResults(null);
+      setAnalysisError(null);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
@@ -289,6 +291,7 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
           <DialogTitle>Submit Email for AI Analysis</DialogTitle>
           <DialogDescription>
             Enter email details to analyze for potential phishing or security threats using advanced AI.
+            Analyzed emails will be visible to all users.
           </DialogDescription>
         </DialogHeader>
         
@@ -447,42 +450,8 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
               </Button>
               <Button 
                 type="submit" 
-                disabled={false} // Button is ALWAYS enabled
                 className={analysisResults ? 
                   (analysisResults.riskLevel === 'phishing' ? 'bg-destructive hover:bg-destructive/90' : '') : ''}
-                onClick={(e) => {
-                  if (!analysisResults && !isAnalyzing) {
-                    e.preventDefault();
-                    const formData = form.getValues();
-                    
-                    // Handle API failure gracefully by using mock analysis after short delay
-                    const handleApiFailure = () => {
-                      setTimeout(() => {
-                        const mockResult = generateMockAnalysisResult(formData);
-                        setAnalysisResults(mockResult);
-                        setIsAnalyzing(false);
-                      }, 1500);
-                    };
-                    
-                    setIsAnalyzing(true);
-                    
-                    // Attempt to call API, fall back to mock data
-                    fetch('/api/analyze-email', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(formData)
-                    }).then(response => {
-                      if (!response.ok) throw new Error('API error');
-                      return response.json();
-                    }).then(result => {
-                      setAnalysisResults(result);
-                      setIsAnalyzing(false);
-                    }).catch(error => {
-                      console.error('Falling back to mock analysis:', error);
-                      handleApiFailure();
-                    });
-                  }
-                }}
               >
                 {isAnalyzing ? (
                   <>
