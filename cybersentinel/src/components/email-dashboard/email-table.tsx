@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Email, RolePermission } from '@/lib/types';
 import { formatDate } from '@/lib/config';
 import { riskLevelConfig, statusConfig } from '@/lib/config';
@@ -49,6 +49,8 @@ interface EmailTableProps {
   onBlockEmail: (id: number) => void;
   onDeleteEmail: (id: number) => void;
   currentRole: string;
+  selectedEmailId?: number | null;
+  setSelectedEmailId?: (id: number | null) => void;
 }
 
 export function EmailTable({ 
@@ -57,18 +59,37 @@ export function EmailTable({
   permissions, 
   onBlockEmail, 
   onDeleteEmail,
-  currentRole
+  currentRole,
+  selectedEmailId,
+  setSelectedEmailId
 }: EmailTableProps) {
-  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+
+  // Handle auto-opening email detail when selectedEmailId is provided (from notification)
+  useEffect(() => {
+    if (selectedEmailId) {
+      const emailToOpen = emails.find(email => email.id === selectedEmailId);
+      if (emailToOpen) {
+        setSelectedEmail(emailToOpen);
+        setIsModalOpen(true);
+      }
+    }
+  }, [selectedEmailId, emails]);
 
   const handleViewDetails = (email: Email) => {
     setSelectedEmail(email);
+    if (setSelectedEmailId) {
+      setSelectedEmailId(email.id);
+    }
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    if (setSelectedEmailId) {
+      setSelectedEmailId(null);
+    }
     // Keep the selected email for a moment to prevent UI flicker during modal close animation
     setTimeout(() => setSelectedEmail(null), 300);
   };
@@ -96,7 +117,7 @@ export function EmailTable({
           {emails.map((email) => (
             <TableRow 
               key={email.id} 
-              className="hover:bg-muted/50 cursor-pointer"
+              className={`hover:bg-muted/50 cursor-pointer ${email.id === selectedEmailId ? 'bg-muted' : ''}`}
               onClick={() => handleViewDetails(email)}
             >
               <TableCell className="font-medium">{email.sender}</TableCell>
@@ -150,7 +171,7 @@ export function EmailTable({
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-background border shadow-md">
+                  <DropdownMenuContent align="end" className="w-56 bg-background border shadow-md">
                     <DropdownMenuLabel className="font-medium">Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
