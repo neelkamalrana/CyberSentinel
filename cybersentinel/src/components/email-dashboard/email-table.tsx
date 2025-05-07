@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Email, RolePermission } from '@/lib/types';
+import { Email, RiskLevel, RolePermission } from '@/lib/types';
 import { formatDate } from '@/lib/config';
 import { riskLevelConfig, statusConfig } from '@/lib/config';
 import { EmailDetailModal } from './email-detail-modal';
@@ -39,7 +39,8 @@ import {
   Eye,
   Ban,
   Trash2,
-  Download
+  Download,
+  Flag
 } from "lucide-react";
 
 interface EmailTableProps {
@@ -48,6 +49,7 @@ interface EmailTableProps {
   permissions: RolePermission;
   onBlockEmail: (id: number) => void;
   onDeleteEmail: (id: number) => void;
+  onUpdateFlag?: (id: number, newRiskLevel: RiskLevel, feedback: string) => void;
   currentRole: string;
   selectedEmailId?: number | null;
   setSelectedEmailId?: (id: number | null) => void;
@@ -59,6 +61,7 @@ export function EmailTable({
   permissions, 
   onBlockEmail, 
   onDeleteEmail,
+  onUpdateFlag,
   currentRole,
   selectedEmailId,
   setSelectedEmailId
@@ -184,6 +187,21 @@ export function EmailTable({
                       <Eye className="mr-2 h-4 w-4" />
                       <span>View Details</span>
                     </DropdownMenuItem>
+                    
+                    {onUpdateFlag && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(email);
+                          // The flag correction will be accessible from the detail modal
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>Suggest Correction</span>
+                      </DropdownMenuItem>
+                    )}
+                    
                     {permissions.canBlock && (
                       <DropdownMenuItem 
                         onClick={(e) => {
@@ -220,6 +238,11 @@ export function EmailTable({
       <div className="flex justify-between border-t bg-muted/50 py-3 px-6 mt-4">
         <p className="text-sm text-muted-foreground">
           Current role: <span className="font-medium capitalize">{currentRole}</span>
+          {currentRole === 'viewer' && onUpdateFlag && (
+            <span className="ml-2 text-primary text-xs">
+              (You can suggest corrections to email risk levels)
+            </span>
+          )}
         </p>
         
         <Button variant="outline" size="sm" disabled={emails.length === 0}>
@@ -235,6 +258,7 @@ export function EmailTable({
         onClose={handleCloseModal}
         onBlock={onBlockEmail}
         onDelete={onDeleteEmail}
+        onUpdateFlag={onUpdateFlag}
         canBlock={permissions.canBlock}
         canDelete={permissions.canDelete}
       />
