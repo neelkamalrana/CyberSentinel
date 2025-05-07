@@ -60,21 +60,24 @@ export const rolePermissions: RolePermissions = {
     canDelete: true,
     canExport: true,
     canManageUsers: true,
-    canChangeSettings: true
+    canChangeSettings: true,
+    canSuggestCorrections: true
   },
   analyst: {
     canBlock: true,
     canDelete: false,
     canExport: true,
     canManageUsers: false,
-    canChangeSettings: false
+    canChangeSettings: false,
+    canSuggestCorrections: true
   },
   viewer: {
     canBlock: false,
     canDelete: false,
     canExport: true,
     canManageUsers: false,
-    canChangeSettings: false
+    canChangeSettings: false,
+    canSuggestCorrections: true  // Allow viewers to suggest corrections
   }
 };
 

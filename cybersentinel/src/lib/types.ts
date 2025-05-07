@@ -68,6 +68,7 @@ export interface RolePermission {
   canExport: boolean;
   canManageUsers: boolean;
   canChangeSettings: boolean;
+  canSuggestCorrections: boolean;
 }
 
 export interface RolePermissions {
