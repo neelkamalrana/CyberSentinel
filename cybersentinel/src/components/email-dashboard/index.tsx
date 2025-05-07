@@ -10,7 +10,7 @@ import { AddEmailForm } from './add-email-form';
 import { SecurityToolsHub } from './security-tools-hub';
 import { mockEmails, generateMockStats } from '@/lib/mock-data';
 import { rolePermissions } from '@/lib/config';
-import { UserRole, Email, User } from '@/lib/types';
+import { Email, User } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { 
   Card, 
@@ -28,40 +28,49 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter } from 'next/navigation';
 
 export default function PhishingDashboard() {
   const { setTheme } = useTheme();
   const { user: authUser, logout } = useAuth();
+  const router = useRouter();
   const [allEmails, setAllEmails] = useState<Email[]>(mockEmails);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>(mockEmails);
   const [filterRisk, setFilterRisk] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentRole, setCurrentRole] = useState<UserRole>(authUser?.role || 'viewer');
   const [stats, setStats] = useState(generateMockStats(mockEmails));
   const [activeTab, setActiveTab] = useState<string>("dashboard");
-  const permissions = rolePermissions[currentRole];
+  
+  // If no authenticated user, redirect to login
+  useEffect(() => {
+    if (!authUser) {
+      router.push('/login');
+    }
+  }, [authUser, router]);
+  
+  // Get permissions based on the authenticated user's role
+  const permissions = authUser ? rolePermissions[authUser.role] : rolePermissions.viewer;
   
   // Create a user object compatible with our existing components
   const dashboardUser: User = {
     id: 1,
     name: authUser?.name || authUser?.email?.split('@')[0] || 'User',
     email: authUser?.email || 'user@example.com',
-    role: currentRole,
+    role: authUser?.role || 'viewer',
     avatar: "/avatars/user-01.png"
+  };
+  
+  // Handle logout with redirect
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
   };
   
   // Set dark theme on component mount
   useEffect(() => {
     setTheme("dark");
   }, [setTheme]);
-  
-  // Update current role when authUser changes
-  useEffect(() => {
-    if (authUser?.role) {
-      setCurrentRole(authUser.role);
-    }
-  }, [authUser]);
   
   // Filter emails based on risk level, status and search query
   useEffect(() => {
@@ -122,17 +131,17 @@ export default function PhishingDashboard() {
     alert("Exporting data...");
     // Implement export functionality
   };
-
-  const handleChangeRole = (role: UserRole) => {
-    setCurrentRole(role);
-  };
+  
+  // Guard against no user
+  if (!authUser) {
+    return null;
+  }
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader 
         user={dashboardUser}
-        currentRole={currentRole} 
-        onChangeRole={handleChangeRole} 
+        onLogout={handleLogout}
       />
 
       <main className="flex-grow container mx-auto px-4 py-6 space-y-6">
@@ -185,10 +194,13 @@ export default function PhishingDashboard() {
               <Shield className="mr-2 h-4 w-4" />
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="tools" className="flex items-center">
-              <Shield className="mr-2 h-4 w-4" />
-              Security Tools
-            </TabsTrigger>
+            {/* Only show the Security Tools tab for admin and analyst roles */}
+            {(authUser.role === 'admin' || authUser.role === 'analyst') && (
+              <TabsTrigger value="tools" className="flex items-center">
+                <Shield className="mr-2 h-4 w-4" />
+                Security Tools
+              </TabsTrigger>
+            )}
           </TabsList>
           
           <TabsContent value="dashboard" className="mt-6">
@@ -215,15 +227,18 @@ export default function PhishingDashboard() {
                   permissions={permissions}
                   onBlockEmail={handleBlockEmail}
                   onDeleteEmail={handleDeleteEmail}
-                  currentRole={currentRole}
+                  currentRole={authUser.role}
                 />
               </CardContent>
             </Card>
           </TabsContent>
           
-          <TabsContent value="tools" className="mt-6">
-            <SecurityToolsHub onAddEmail={handleAddEmail} />
-          </TabsContent>
+          {/* Only show the Security Tools tab content for admin and analyst roles */}
+          {(authUser.role === 'admin' || authUser.role === 'analyst') && (
+            <TabsContent value="tools" className="mt-6">
+              <SecurityToolsHub onAddEmail={handleAddEmail} />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
       
