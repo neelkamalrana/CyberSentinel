@@ -8,9 +8,10 @@ import { FilterControls } from './filter-controls';
 import { EmailTable } from './email-table';
 import { AddEmailForm } from './add-email-form';
 import { SecurityToolsHub } from './security-tools-hub';
-import { currentUser, mockEmails, generateMockStats } from '@/lib/mock-data';
+import { mockEmails, generateMockStats } from '@/lib/mock-data';
 import { rolePermissions } from '@/lib/config';
-import { UserRole, Email } from '@/lib/types';
+import { UserRole, Email, User } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
 import { 
   Card, 
   CardHeader, 
@@ -30,20 +31,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function PhishingDashboard() {
   const { setTheme } = useTheme();
+  const { user: authUser, logout } = useAuth();
   const [allEmails, setAllEmails] = useState<Email[]>(mockEmails);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>(mockEmails);
   const [filterRisk, setFilterRisk] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentRole, setCurrentRole] = useState<UserRole>(currentUser.role);
+  const [currentRole, setCurrentRole] = useState<UserRole>(authUser?.role || 'viewer');
   const [stats, setStats] = useState(generateMockStats(mockEmails));
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const permissions = rolePermissions[currentRole];
+  
+  // Create a user object compatible with our existing components
+  const dashboardUser: User = {
+    id: 1,
+    name: authUser?.name || authUser?.email?.split('@')[0] || 'User',
+    email: authUser?.email || 'user@example.com',
+    role: currentRole,
+    avatar: "/avatars/user-01.png"
+  };
   
   // Set dark theme on component mount
   useEffect(() => {
     setTheme("dark");
   }, [setTheme]);
+  
+  // Update current role when authUser changes
+  useEffect(() => {
+    if (authUser?.role) {
+      setCurrentRole(authUser.role);
+    }
+  }, [authUser]);
   
   // Filter emails based on risk level, status and search query
   useEffect(() => {
@@ -112,7 +130,7 @@ export default function PhishingDashboard() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader 
-        user={currentUser} 
+        user={dashboardUser}
         currentRole={currentRole} 
         onChangeRole={handleChangeRole} 
       />
