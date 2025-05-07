@@ -84,7 +84,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     setAnalysisError(null);
     
     try {
-      // Call our API route
       const response = await fetch('/api/analyze-email', {
         method: 'POST',
         headers: {
@@ -114,7 +113,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
       console.error('Error analyzing email:', error);
       setAnalysisError(error instanceof Error ? error.message : 'Failed to analyze the email');
       
-      // Fall back to mock analysis after a brief delay
       setTimeout(() => {
         handleApiFailure(data);
       }, 1500);
@@ -123,46 +121,37 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     }
   };
 
-  // Fallback function for API failure
   const handleApiFailure = (data: FormValues) => {
-    // Generate a basic mock result
     const mockResult: AnalysisResult = generateMockAnalysisResult(data);
     setAnalysisResults(mockResult);
     setIsAnalyzing(false);
   };
 
-  // Function to mock analysis result when API is unavailable
   const generateMockAnalysisResult = (data: FormValues): AnalysisResult => {
     const content = data.content.toLowerCase();
     const sender = data.sender.toLowerCase();
     const subject = data.subject.toLowerCase();
     
-    // Determine risk level based on content
     let riskLevel: RiskLevel = 'safe';
     const indicators: string[] = [];
     const suspiciousLinks: { url: string; reason: string }[] = [];
     
-    // Extract URLs
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const urls = content.match(urlRegex) || [];
     
-    // Check for phishing indicators
     const urgentWords = ['urgent', 'immediately', 'alert', 'attention', 'verify', 'suspend', 'locked'];
     const sensitiveWords = ['password', 'credit card', 'account', 'login', 'social security', 'bank'];
     
-    // Check for urgent language
     if (urgentWords.some(word => content.includes(word) || subject.includes(word))) {
       indicators.push('Uses urgent language to create pressure');
       riskLevel = 'suspicious';
     }
     
-    // Check for sensitive information requests
     if (sensitiveWords.some(word => content.includes(word))) {
       indicators.push('Requests sensitive personal information');
       riskLevel = 'suspicious';
     }
     
-    // Check for suspicious domains in sender
     if (sender.includes('paypal') && !sender.endsWith('@paypal.com') || 
         sender.includes('amazon') && !sender.endsWith('@amazon.com') ||
         sender.includes('apple') && !sender.endsWith('@apple.com')) {
@@ -170,9 +159,7 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
       riskLevel = 'phishing';
     }
     
-    // Check URLs for suspicious patterns
     urls.forEach(url => {
-      // Simplified check for demonstration
       if (url.includes('login') || url.includes('verify') || url.includes('secure')) {
         suspiciousLinks.push({
           url,
@@ -181,7 +168,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
         riskLevel = 'phishing';
       }
       
-      // Check for typosquatting
       if ((url.includes('paypa1') || url.includes('arnazon') || url.includes('app1e'))) {
         suspiciousLinks.push({
           url,
@@ -191,7 +177,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
       }
     });
     
-    // Add general indicators based on risk level
     if (riskLevel === 'phishing' && indicators.length < 2) {
       indicators.push('Multiple suspicious elements detected');
     }
@@ -215,15 +200,13 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
   };
 
   const onSubmit = (data: FormValues) => {
-    // First analyze the email if not already analyzed
     if (!analysisResults) {
       analyzeEmail(data);
       return;
     }
     
-    // If we already have analysis results, create and add the email
     const newEmail: Email = {
-      id: Date.now(), // Generate unique ID using timestamp
+      id: Date.now(),
       sender: data.sender,
       subject: data.subject,
       content: data.content,
@@ -232,35 +215,30 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
       status: analysisResults.riskLevel === 'phishing' ? 'flagged' : 
               analysisResults.riskLevel === 'suspicious' ? 'reviewing' : 'cleared',
       indicators: analysisResults.indicators,
-      recipient: authUser?.email || 'security@company.com', // Store who submitted the analysis
+      recipient: authUser?.email || 'security@company.com',
       links: formatLinks(analysisResults.suspiciousLinks || [], data.content),
       attachments: []
     };
     
     onAddEmail(newEmail);
     
-    // Reset form and close dialog
     form.reset();
     setAnalysisResults(null);
     setIsOpen(false);
   };
 
-  // Helper function to format links from analysis results and content
   const formatLinks = (
     suspiciousLinks: { url: string; reason: string }[], 
     content: string
   ) => {
-    // Extract all links from content with a simple regex
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const allLinks = content.match(urlRegex) || [];
     
-    // Create a map of suspicious links
     const suspiciousMap = new Map();
     suspiciousLinks.forEach(link => {
       suspiciousMap.set(link.url, link.reason);
     });
     
-    // Return formatted links
     return allLinks.map(url => ({
       url,
       isSuspicious: suspiciousMap.has(url),
@@ -268,7 +246,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
     }));
   };
   
-  // Handle dialog close - reset form and analysis
   const handleDialogChange = (open: boolean) => {
     setIsOpen(open);
     if (!open) {
@@ -345,7 +322,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
               />
             </div>
             
-            {/* Error Message */}
             {analysisError && (
               <div className="bg-destructive/10 p-3 rounded-md text-destructive flex items-start">
                 <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
@@ -356,7 +332,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
               </div>
             )}
             
-            {/* Analysis Results */}
             {analysisResults && (
               <Card className="mt-4">
                 <CardHeader className="pb-2">
@@ -392,12 +367,10 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
                   
                   <Separator />
                   
-                  {/* Analysis explanation */}
                   <div className="text-sm">
                     <p>{analysisResults.analysis}</p>
                   </div>
                   
-                  {/* Detected Indicators */}
                   <div>
                     <h4 className="text-sm font-medium mb-2">Detected Indicators:</h4>
                     <ul className="space-y-1">
@@ -410,7 +383,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
                     </ul>
                   </div>
                   
-                  {/* Suspicious Links */}
                   {analysisResults.suspiciousLinks && analysisResults.suspiciousLinks.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium mb-2">Suspicious Links:</h4>
@@ -430,7 +402,6 @@ export function AddEmailForm({ onAddEmail }: AddEmailFormProps) {
                     </div>
                   )}
                   
-                  {/* Recommended Action */}
                   <div className="mt-4 p-3 rounded-md bg-muted text-sm">
                     <h4 className="font-medium mb-1">Recommended Action:</h4>
                     <p>{analysisResults.recommendedAction}</p>
