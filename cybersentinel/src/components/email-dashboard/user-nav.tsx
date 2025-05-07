@@ -38,9 +38,10 @@ interface UserNavProps {
   user: User;
   currentRole: UserRole;
   onChangeRole: (role: UserRole) => void;
+  onLogout: () => void;
 }
 
-export function UserNav({ user, currentRole, onChangeRole }: UserNavProps) {
+export function UserNav({ user, currentRole, onChangeRole, onLogout }: UserNavProps) {
   return (
     <div className="flex items-center space-x-4">
       <TooltipProvider>
@@ -98,7 +99,7 @@ export function UserNav({ user, currentRole, onChangeRole }: UserNavProps) {
             <span>Viewer</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="cursor-pointer">
+          <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-destructive">
             <LogOut className="mr-2 h-4 w-4" />
             <span>Log out</span>
           </DropdownMenuItem>
