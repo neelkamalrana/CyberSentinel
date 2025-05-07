@@ -155,9 +155,9 @@ export default function PhishingDashboard() {
       email.id === id ? { ...email, status: 'blocked' } : email
     );
     
-    setAllEmails(updatedEmails);
+    setAllEmails(updatedEmails as Email[]);
     
-    globalStorage.saveAllEmails(updatedEmails);
+    globalStorage.saveAllEmails(updatedEmails as Email[]);
     
     // Add a notification for blocked email
     const blockedEmail = updatedEmails.find(email => email.id === id);
