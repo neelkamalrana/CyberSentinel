@@ -3,18 +3,14 @@
 import React from 'react';
 import { Shield } from 'lucide-react';
 import { UserNav } from './user-nav';
-import { User, UserRole } from '@/lib/types';
-import { useAuth } from '@/lib/auth-context';
+import { User } from '@/lib/types';
 
 interface DashboardHeaderProps {
   user: User;
-  currentRole: UserRole;
-  onChangeRole: (role: UserRole) => void;
+  onLogout: () => void;
 }
 
-export function DashboardHeader({ user, currentRole, onChangeRole }: DashboardHeaderProps) {
-  const { logout } = useAuth();
-  
+export function DashboardHeader({ user, onLogout }: DashboardHeaderProps) {
   return (
     <header className="border-b bg-card">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -25,9 +21,7 @@ export function DashboardHeader({ user, currentRole, onChangeRole }: DashboardHe
         
         <UserNav 
           user={user} 
-          currentRole={currentRole} 
-          onChangeRole={onChangeRole}
-          onLogout={logout}
+          onLogout={onLogout} 
         />
       </div>
     </header>
