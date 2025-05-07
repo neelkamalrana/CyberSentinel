@@ -10,7 +10,7 @@ import { AddEmailForm } from './add-email-form';
 import { SecurityToolsHub } from './security-tools-hub';
 import { mockEmails, generateMockStats } from '@/lib/mock-data';
 import { rolePermissions } from '@/lib/config';
-import { Email, User } from '@/lib/types';
+import { Email, User, RiskLevel } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { globalStorage } from '@/lib/global-storage';
 import { notificationsStore } from '@/lib/notifications-store';
@@ -189,6 +189,45 @@ export default function PhishingDashboard() {
       });
     }
   };
+  
+  // New function to handle flag correction suggestions
+  const handleUpdateFlag = (id: number, newRiskLevel: RiskLevel, feedback: string) => {
+    // Find the email to update
+    const emailToUpdate = allEmails.find(email => email.id === id);
+    
+    if (!emailToUpdate) return;
+    
+    // Create updated email
+    const updatedEmail: Email = {
+      ...emailToUpdate,
+      riskLevel: newRiskLevel,
+      // Update status based on new risk level
+      status: newRiskLevel === 'phishing' ? 'flagged' : 
+              newRiskLevel === 'suspicious' ? 'reviewing' : 'cleared'
+    };
+    
+    // Update emails array
+    const updatedEmails = allEmails.map(email => 
+      email.id === id ? updatedEmail : email
+    );
+    
+    setAllEmails(updatedEmails);
+    
+    globalStorage.saveAllEmails(updatedEmails);
+    
+    // Add notification about flag correction
+    notificationsStore.addNotification({
+      message: `Risk level for "${emailToUpdate.subject}" was updated to ${newRiskLevel} based on feedback from ${authUser?.name || 'a user'}`,
+      emailId: id,
+      type: 'info'
+    });
+    
+    // Log feedback if provided
+    if (feedback) {
+      console.log(`Feedback for email ${id}: ${feedback}`);
+      // In a real app, this feedback would be stored in a database for review
+    }
+  };
 
   const handleExportData = () => {
     if (!permissions.canExport) return;
@@ -295,6 +334,11 @@ export default function PhishingDashboard() {
                 <CardTitle>Email Security Analysis</CardTitle>
                 <CardDescription>
                   Review and monitor potentially dangerous emails
+                  {authUser.role === 'viewer' && (
+                    <span className="block text-xs text-primary mt-1">
+                      As a viewer, you can suggest corrections to email classifications
+                    </span>
+                  )}
                 </CardDescription>
                 
                 <FilterControls 
@@ -318,6 +362,7 @@ export default function PhishingDashboard() {
                     permissions={permissions}
                     onBlockEmail={handleBlockEmail}
                     onDeleteEmail={handleDeleteEmail}
+                    onUpdateFlag={handleUpdateFlag}
                     currentRole={authUser.role}
                     selectedEmailId={selectedEmailId}
                     setSelectedEmailId={setSelectedEmailId}
