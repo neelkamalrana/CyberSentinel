@@ -4,6 +4,7 @@ import React from 'react';
 import { Shield } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { User, UserRole } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
 
 interface DashboardHeaderProps {
   user: User;
@@ -12,6 +13,8 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ user, currentRole, onChangeRole }: DashboardHeaderProps) {
+  const { logout } = useAuth();
+  
   return (
     <header className="border-b bg-card">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -23,7 +26,8 @@ export function DashboardHeader({ user, currentRole, onChangeRole }: DashboardHe
         <UserNav 
           user={user} 
           currentRole={currentRole} 
-          onChangeRole={onChangeRole} 
+          onChangeRole={onChangeRole}
+          onLogout={logout}
         />
       </div>
     </header>
