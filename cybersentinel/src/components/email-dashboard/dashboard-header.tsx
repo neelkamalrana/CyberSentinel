@@ -3,6 +3,7 @@
 import React from 'react';
 import { Shield } from 'lucide-react';
 import { UserNav } from './user-nav';
+import { NotificationsDropdown } from './notifications-dropdown';
 import { User } from '@/lib/types';
 
 interface DashboardHeaderProps {
@@ -19,10 +20,13 @@ export function DashboardHeader({ user, onLogout }: DashboardHeaderProps) {
           <h1 className="text-xl font-semibold tracking-tight">CyberSentinel</h1>
         </div>
         
-        <UserNav 
-          user={user} 
-          onLogout={onLogout} 
-        />
+        <div className="flex items-center space-x-2">
+          <NotificationsDropdown />
+          <UserNav 
+            user={user} 
+            onLogout={onLogout} 
+          />
+        </div>
       </div>
     </header>
   );
