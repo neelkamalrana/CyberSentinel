@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react';
-import { User, UserRole } from '@/lib/types';
+import { User } from '@/lib/types';
 import { 
   Avatar, 
   AvatarFallback, 
@@ -20,12 +20,9 @@ import {
 } from "@/components/ui/button";
 import { 
   Bell, 
-  Shield, 
   Settings, 
   User as UserIcon, 
-  Users, 
-  LogOut, 
-  Eye 
+  LogOut
 } from "lucide-react";
 import { 
   Tooltip, 
@@ -36,12 +33,10 @@ import {
 
 interface UserNavProps {
   user: User;
-  currentRole: UserRole;
-  onChangeRole: (role: UserRole) => void;
   onLogout: () => void;
 }
 
-export function UserNav({ user, currentRole, onChangeRole, onLogout }: UserNavProps) {
+export function UserNav({ user, onLogout }: UserNavProps) {
   return (
     <div className="flex items-center space-x-4">
       <TooltipProvider>
@@ -69,7 +64,7 @@ export function UserNav({ user, currentRole, onChangeRole, onLogout }: UserNavPr
             </Avatar>
             <div className="flex flex-col items-start text-sm">
               <span className="font-medium">{user.name}</span>
-              <span className="text-xs text-muted-foreground capitalize">{currentRole}</span>
+              <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
             </div>
           </Button>
         </DropdownMenuTrigger>
@@ -83,20 +78,6 @@ export function UserNav({ user, currentRole, onChangeRole, onLogout }: UserNavPr
           <DropdownMenuItem className="cursor-pointer">
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel className="font-medium">Switch Role</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => onChangeRole('admin')} className="cursor-pointer">
-            <Shield className="mr-2 h-4 w-4" />
-            <span>Admin</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChangeRole('analyst')} className="cursor-pointer">
-            <Eye className="mr-2 h-4 w-4" />
-            <span>Analyst</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChangeRole('viewer')} className="cursor-pointer">
-            <Users className="mr-2 h-4 w-4" />
-            <span>Viewer</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-destructive">
