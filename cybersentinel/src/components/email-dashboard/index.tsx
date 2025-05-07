@@ -13,6 +13,7 @@ import { rolePermissions } from '@/lib/config';
 import { Email, User } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { globalStorage } from '@/lib/global-storage';
+import { notificationsStore } from '@/lib/notifications-store';
 import { 
   Card, 
   CardHeader, 
@@ -29,12 +30,13 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function PhishingDashboard() {
   const { setTheme } = useTheme();
   const { user: authUser, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [allEmails, setAllEmails] = useState<Email[]>([]);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>([]);
@@ -43,12 +45,24 @@ export default function PhishingDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [stats, setStats] = useState(generateMockStats([]));
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [selectedEmailId, setSelectedEmailId] = useState<number | null>(null);
   
   useEffect(() => {
     if (!authUser) {
       router.push('/login');
     }
   }, [authUser, router]);
+  
+  // Check for emailId in URL params (for notification click navigation)
+  useEffect(() => {
+    const emailId = searchParams.get('emailId');
+    if (emailId) {
+      const id = parseInt(emailId, 10);
+      if (!isNaN(id)) {
+        setSelectedEmailId(id);
+      }
+    }
+  }, [searchParams]);
   
   useEffect(() => {
     const globalEmails = globalStorage.getAllEmails();
@@ -99,8 +113,24 @@ export default function PhishingDashboard() {
       );
     }
     
+    // If navigated from notification, set appropriate filters to ensure email is visible
+    if (selectedEmailId) {
+      const selectedEmail = allEmails.find(email => email.id === selectedEmailId);
+      if (selectedEmail) {
+        if (filterRisk !== 'all' && filterRisk !== selectedEmail.riskLevel) {
+          setFilterRisk(selectedEmail.riskLevel);
+          return; // Return early as the filterRisk change will trigger this effect again
+        }
+        
+        if (filterStatus !== 'all' && filterStatus !== selectedEmail.status) {
+          setFilterStatus(selectedEmail.status);
+          return; // Return early as the filterStatus change will trigger this effect again
+        }
+      }
+    }
+    
     setFilteredEmails(filtered);
-  }, [filterRisk, filterStatus, searchQuery, allEmails]);
+  }, [filterRisk, filterStatus, searchQuery, allEmails, selectedEmailId]);
 
   useEffect(() => {
     setStats(generateMockStats(allEmails));
@@ -111,6 +141,11 @@ export default function PhishingDashboard() {
     setAllEmails(updatedEmails);
     
     globalStorage.saveAllEmails(updatedEmails);
+    
+    // Create notification for suspicious or phishing emails
+    if (newEmail.riskLevel === 'suspicious' || newEmail.riskLevel === 'phishing') {
+      notificationsStore.addEmailNotification(newEmail);
+    }
   };
 
   const handleBlockEmail = (id: number) => {
@@ -123,15 +158,36 @@ export default function PhishingDashboard() {
     setAllEmails(updatedEmails);
     
     globalStorage.saveAllEmails(updatedEmails);
+    
+    // Add a notification for blocked email
+    const blockedEmail = updatedEmails.find(email => email.id === id);
+    if (blockedEmail) {
+      notificationsStore.addNotification({
+        message: `Email "${blockedEmail.subject}" has been blocked by ${authUser?.name || 'an admin'}`,
+        emailId: id,
+        type: 'info'
+      });
+    }
   };
 
   const handleDeleteEmail = (id: number) => {
     if (!permissions.canDelete) return;
     
+    // Get email details before deleting
+    const emailToDelete = allEmails.find(email => email.id === id);
+    
     const updatedEmails = allEmails.filter(email => email.id !== id);
     setAllEmails(updatedEmails);
     
     globalStorage.saveAllEmails(updatedEmails);
+    
+    // Add a notification for deleted email
+    if (emailToDelete) {
+      notificationsStore.addNotification({
+        message: `Email "${emailToDelete.subject}" has been deleted by ${authUser?.name || 'an admin'}`,
+        type: 'warning'
+      });
+    }
   };
 
   const handleExportData = () => {
@@ -150,6 +206,12 @@ export default function PhishingDashboard() {
     
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    
+    // Add a notification for export event
+    notificationsStore.addNotification({
+      message: `Email security data was exported by ${authUser?.name || 'a user'}`,
+      type: 'info'
+    });
   };
   
   if (!authUser) {
@@ -257,6 +319,8 @@ export default function PhishingDashboard() {
                     onBlockEmail={handleBlockEmail}
                     onDeleteEmail={handleDeleteEmail}
                     currentRole={authUser.role}
+                    selectedEmailId={selectedEmailId}
+                    setSelectedEmailId={setSelectedEmailId}
                   />
                 )}
               </CardContent>
