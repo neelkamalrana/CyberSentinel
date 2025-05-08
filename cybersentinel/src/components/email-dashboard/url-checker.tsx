@@ -32,8 +32,52 @@ import {
   Globe,
   Lock,
   Info,
+  ChevronRight,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
+
+const defaultExamples = [
+  { 
+    url: "google.com", 
+    description: "Legitimate search engine" 
+  },
+  { 
+    url: "amazon.com", 
+    description: "Legitimate e-commerce site" 
+  },
+  { 
+    url: "g00gle.com", 
+    description: "Typosquatting domain (zeros instead of 'o's)" 
+  },
+  { 
+    url: "paypa1.com", 
+    description: "Typosquatting domain (number '1' instead of 'l')" 
+  },
+  { 
+    url: "microsoft-secure-auth.com", 
+    description: "Suspicious domain with brand name" 
+  },
+  { 
+    url: "facebook.com", 
+    description: "Legitimate social media site" 
+  },
+  { 
+    url: "faceb00k-security.net", 
+    description: "Typosquatting domain with suspicious subdomain" 
+  },
+  { 
+    url: "dropbox.com", 
+    description: "Legitimate cloud storage" 
+  },
+  { 
+    url: "account-verify-apple.com", 
+    description: "Suspicious domain with verification keywords" 
+  },
+  { 
+    url: "github.com", 
+    description: "Legitimate code repository" 
+  }
+];
 
 interface UrlCheckResult {
   url: string;
@@ -54,6 +98,7 @@ export function UrlChecker() {
   const [isOpen, setIsOpen] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<UrlCheckResult | null>(null);
+  const [showExamples, setShowExamples] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -62,10 +107,8 @@ export function UrlChecker() {
   });
 
   const validateUrl = (url: string) => {
-    // Basic URL validation
     if (!url) return false;
     
-    // Add http:// if missing
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
@@ -88,7 +131,6 @@ export function UrlChecker() {
     }
     
     let url = data.url;
-    // Add https:// if missing
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
@@ -96,24 +138,36 @@ export function UrlChecker() {
     setIsChecking(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const domain = new URL(url).hostname.toLowerCase();
       
-      // For demo purposes: Determine if URL looks suspicious
-      const hasTyposquatting = /paypa[l1]|amaz[o0]n|g[o0][o0]gle|faceb[o0][o0]k|micr[o0]s[o0]ft/i.test(url);
-      const isKnownPhishingDomain = url.includes('secure-verify') || 
-                                   url.includes('account-update') || 
-                                   url.includes('login-confirm');
+      const knownLegitDomains = [
+        'google.com', 
+        'amazon.com', 
+        'facebook.com', 
+        'microsoft.com', 
+        'apple.com', 
+        'github.com',
+        'dropbox.com'
+      ];
+      
+      const hasTyposquatting = /g[o0][o0]gle|amaz[o0]n|faceb[o0][o0]k|paypa[l1]|micr[o0]s[o0]ft|app[l1]e/.test(domain);
+      const isKnownPhishingPattern = domain.includes('secure-verify') || 
+                                   domain.includes('account-update') || 
+                                   domain.includes('login-confirm');
       const hasSuspiciousPath = url.includes('/verify') || 
                                url.includes('/signin') || 
                                url.includes('/security');
       
-      // Generate a status based on the URL
+      const isLegitDomain = knownLegitDomains.some(d => domain === d || domain.endsWith('.' + d));
+      
       let status: 'safe' | 'suspicious' | 'malicious' = 'safe';
       let confidenceScore = 90;
       const maliciousPatterns: string[] = [];
       
-      if (isKnownPhishingDomain) {
+      if (isLegitDomain) {
+        status = 'safe';
+        confidenceScore = Math.floor(Math.random() * 5) + 95;
+      } else if (isKnownPhishingPattern) {
         status = 'malicious';
         confidenceScore = 95;
         maliciousPatterns.push('Known phishing domain pattern');
@@ -125,13 +179,14 @@ export function UrlChecker() {
         status = 'suspicious';
         confidenceScore = 75;
         maliciousPatterns.push('Suspicious URL path pattern');
-      } else if (Math.random() > 0.8) {
+      } else if (domain.includes('-') || domain.includes('secure') || domain.includes('login')) {
         status = 'suspicious';
         confidenceScore = 68;
-        maliciousPatterns.push('Unknown domain with limited history');
+        maliciousPatterns.push('Domain contains suspicious keywords');
       }
       
-      // Mock result
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       const result: UrlCheckResult = {
         url,
         status,
@@ -159,6 +214,12 @@ export function UrlChecker() {
     } finally {
       setIsChecking(false);
     }
+  };
+
+  const checkExampleUrl = (url: string) => {
+    form.setValue('url', url);
+    analyzeUrl({ url });
+    setShowExamples(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -226,11 +287,47 @@ export function UrlChecker() {
                 {form.formState.errors.url.message || 'Please enter a valid URL'}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Enter a complete URL including http:// or https://
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Enter a complete URL including http:// or https://
+              </p>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowExamples(!showExamples)}
+                className="text-xs h-6 px-2"
+              >
+                {showExamples ? 'Hide Examples' : 'Show Examples'}
+              </Button>
+            </div>
           </div>
         </form>
+        
+        {showExamples && (
+          <div className="border rounded-md p-2 mt-2 bg-muted/30">
+            <h4 className="text-sm font-medium mb-2">Example URLs to Check:</h4>
+            <div className="max-h-40 overflow-y-auto">
+              <ul className="space-y-1">
+                {defaultExamples.map((example, index) => (
+                  <li key={index}>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-between h-auto py-1 text-xs"
+                      onClick={() => checkExampleUrl(example.url)}
+                    >
+                      <span className="font-medium">{example.url}</span>
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground text-xs mr-1">{example.description}</span>
+                        <ChevronRight className="h-3 w-3" />
+                      </div>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
         
         {isChecking && (
           <div className="flex flex-col items-center justify-center py-8">
