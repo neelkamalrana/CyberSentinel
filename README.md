@@ -78,4 +78,5 @@ npm run dev
 ```
 <h2>
   <b> Please check the wiki page as well... </b>
+  <a href="https://github.com/neelkamalrana/CyberSentinel/wiki"></a>
 </h2>
