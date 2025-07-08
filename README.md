@@ -21,9 +21,10 @@ The platform provides a **modern dashboard**, **secure API services**, and is bu
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="SnapShots/Dashboard.png" alt="Dashboard" width="30%"/> 
-  <img src="SnapShots/Login.png" alt="Login" width="30%"/>
-  <img src="SnapShots/ThreatReport.png" alt="ThreatReport" width="30%"/>
+  <img src="SnapShots/Login.png" alt="Login" width="85%"/>
+  <img src="SnapShots/Dashboard.png" alt="Dashboard" width="85%"/> 
+  <img src="SnapShots/ThreatReport.png" alt="ThreatReport" width="85"/>
+  <img src="SnapShots/ThreatReport.png" alt="Notifications" width="85"/>
 </p>
 
 ---
