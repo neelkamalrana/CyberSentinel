@@ -77,6 +77,5 @@ NEXTAUTH_URL=http://localhost:3000
 npm run dev
 ```
 <h2>
-  <b> Please check the wiki page as well... </b>
-  <a href="https://github.com/neelkamalrana/CyberSentinel/wiki"></a>
+  <a href="https://github.com/neelkamalrana/CyberSentinel/wiki"> Click to check wiki page...</a>
 </h2>
