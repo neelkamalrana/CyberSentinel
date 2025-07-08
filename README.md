@@ -72,11 +72,10 @@ GITHUB_ID=your_github_client_id
 GITHUB_SECRET=your_github_client_secret
 NEXTAUTH_URL=http://localhost:3000
 ```
-<h2>
-  <b> Please check the wiki page as well... </b>
-</h2>
-
 ### 4. Run the development server
 ```bash
 npm run dev
 ```
+<h2>
+  <b> Please check the wiki page as well... </b>
+</h2>
